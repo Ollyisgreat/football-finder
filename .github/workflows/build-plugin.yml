@@ -329,7 +329,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls src/dist/repo/*.zip >/dev/null 2>&1 || { echo "No zips built"; exit 1; }
-          tag="build-${{ github.run_number }}"
+          tag="build-${{ github.run_id }}"
           python3 src/make-manifest.py "https://github.com/${{ github.repository }}/releases/download/$tag"
           gh release create "$tag" src/dist/*.zip src/dist/repo/*.zip src/dist/repo/manifest.json \
             --repo "${{ github.repository }}" --latest \
