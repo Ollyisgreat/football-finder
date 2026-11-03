@@ -63,7 +63,11 @@ namespace XtreamFootball.Services
             {
                 new TaskTriggerInfo
                 {
+#if NET8_0
+                    Type = TaskTriggerInfo.TriggerInterval,
+#else
                     Type = TaskTriggerInfoType.IntervalTrigger,
+#endif
                     IntervalTicks = TimeSpan.FromHours(3).Ticks
                 }
             };
