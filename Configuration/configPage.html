@@ -81,7 +81,7 @@
                 </div>
 
                 <div class="xf-card">
-                    <h3 style="margin-top:0">My teams</h3>
+                    <h3 style="margin-top:0">My teams <span class="fieldDescription">(these are what Live TV shows)</span></h3>
                     <div class="inputContainer">
                         <textarea is="emby-textarea" id="xfTeams" label="Teams (one per line)" rows="4" placeholder="Arsenal&#10;Man Utd|Manchester United&#10;Galatasaray"></textarea>
                         <div class="fieldDescription">One team per line. Use <b>|</b> between alternative spellings. Common nicknames (Man Utd, Spurs, PSG, Bayern…) are already understood. These become quick-search buttons and feed the Live TV channel list below.</div>
@@ -127,17 +127,19 @@
                 </div>
 
                 <div class="xf-card">
-                    <h3 style="margin-top:0">Watch inside Jellyfin (optional)</h3>
+                    <h3 style="margin-top:0">📺 Watch inside Jellyfin</h3>
                     <div class="fieldDescription" style="margin-bottom:.8em">
-                        Jellyfin can show just the channels carrying your teams' matches as a "Football" Live TV list.
-                        Go to <b>Dashboard → Live TV</b>:<br>
-                        1. <b>Tuner Devices → +</b> → type <b>M3U Tuner</b> → paste the playlist link.<br>
-                        2. <b>TV Guide Data Providers → +</b> → <b>XMLTV</b> → paste the guide link.<br>
-                        3. Run <b>Scheduled Tasks → Refresh Guide</b>. Channels update as matches come and go.
+                        Creates a <b>Football</b> channel list in Jellyfin Live TV with every channel showing your saved teams'
+                        matches. It updates itself every 3 hours. Easiest way: search a team above and tap <b>Add to Live TV</b>.
                     </div>
-                    <div class="inputContainer"><b>Playlist (M3U) link</b><input id="xfM3uUrl" class="xf-url" readonly /></div>
-                    <div class="inputContainer"><b>Guide (XMLTV) link</b><input id="xfXmlUrl" class="xf-url" readonly /></div>
-                    <div class="fieldDescription">If Jellyfin can't load these, replace the start of the link with <code>http://localhost:8096</code> (your server talking to itself). Keep these links private – they contain a secret key.</div>
+                    <button is="emby-button" type="button" id="xfSetupBtn" class="raised button-submit" style="margin:0"><span>Set up / update Live TV now</span></button>
+                    <div id="xfSetupResult" class="xf-msg"></div>
+                    <details style="margin-top:.8em">
+                        <summary class="fieldDescription">Advanced: links for other apps</summary>
+                        <div class="inputContainer"><b>Playlist (M3U) link</b><input id="xfM3uUrl" class="xf-url" readonly /></div>
+                        <div class="inputContainer"><b>Guide (XMLTV) link</b><input id="xfXmlUrl" class="xf-url" readonly /></div>
+                        <div class="fieldDescription">Keep these private – they contain a secret key.</div>
+                    </details>
                 </div>
 
                 <button is="emby-button" type="submit" class="raised button-submit block emby-button">
@@ -287,6 +289,10 @@
                 status.innerHTML = info;
 
                 var html = '';
+                if (r.matches.length || r.namedChannels.length) {
+                    html += '<div class="xf-row" style="margin:.6em 0"><button is="emby-button" type="button" class="raised button-submit xf-addlive" data-q="' +
+                        esc($('#xfQuery').value) + '" style="margin:0"><span>📺 Add "' + esc($('#xfQuery').value) + '" to Live TV</span></button></div>';
+                }
                 if (r.matches.length) {
                     html += '<h3>📺 In the TV guide</h3>';
                     r.matches.forEach(function (m) {
@@ -338,6 +344,30 @@
                 });
             }
 
+            function setupLiveTv(team) {
+                var box = $('#xfSetupResult');
+                var status = team ? $('#xfStatus') : box;
+                status.innerHTML = 'Setting up Live TV… this can take a minute.';
+                Dashboard.showLoadingMsg();
+                var params = team ? { addTeam: team } : {};
+                ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('XtreamFootball/SetupLiveTv', params), dataType: 'json' }).then(function (r) {
+                    Dashboard.hideLoadingMsg();
+                    if (!r || r.error) {
+                        status.innerHTML = '<span class="xf-err">' + esc(r ? r.error : 'Setup failed') + '</span>';
+                        return;
+                    }
+                    $('#xfTeams').value = r.teams.join('\n');
+                    if (currentConfig) { currentConfig.Teams = $('#xfTeams').value; }
+                    renderTeamButtons($('#xfTeams').value);
+                    status.innerHTML = '✅ Live TV is set up with <b>' + r.channels + '</b> football channel(s) for: ' + esc(r.teams.join(', ')) + '.<br>' +
+                        'Give it 1–2 minutes, then go to the Jellyfin <b>home screen → Live TV</b> (or the menu ☰ → Live TV).' +
+                        (r.channels === 0 ? '<br><span class="xf-err">No matches found in the next few days yet – channels will appear automatically when the guide lists one.</span>' : '');
+                }).catch(function () {
+                    Dashboard.hideLoadingMsg();
+                    status.innerHTML = '<span class="xf-err">Setup failed. Check Dashboard → Logs for "XtreamFootball".</span>';
+                });
+            }
+
             function test() {
                 $('#xfTestResult').innerHTML = 'Checking…';
                 save().then(function () {
@@ -372,10 +402,12 @@
                 if (e.key === 'Enter') { e.preventDefault(); search(); }
             });
             $('#xfTestBtn').addEventListener('click', test);
+            $('#xfSetupBtn').addEventListener('click', function () { setupLiveTv(null); });
 
             page.addEventListener('click', function (e) {
-                var t = e.target.closest ? e.target.closest('.xf-copy, .xf-team') : null;
+                var t = e.target.closest ? e.target.closest('.xf-copy, .xf-team, .xf-addlive') : null;
                 if (!t) { return; }
+                if (t.classList.contains('xf-addlive')) { setupLiveTv(t.getAttribute('data-q')); return; }
                 if (t.classList.contains('xf-copy')) { copy(t.getAttribute('data-url')); }
                 if (t.classList.contains('xf-team')) { search(t.getAttribute('data-q')); }
             });

@@ -37,9 +37,9 @@ build() {
 FAILED=""
 rm -rf dist/repo
 # Version numbers rise with the Jellyfin version so the catalogue offers each server the right build.
-build 12    net10.0 12.0.0.0  "12.0.0"  10 1.2.1.0
-build 10.11 net9.0  10.11.0.0 "10.11.0" 9  1.1.1.0
-build 10.10 net8.0  10.10.0.0 "10.10.0" 8  1.0.1.0
+build 12    net10.0 12.0.0.0  "12.0.0"  10 1.2.2.0
+build 10.11 net9.0  10.11.0.0 "10.11.0" 9  1.1.2.0
+build 10.10 net8.0  10.10.0.0 "10.10.0" 8  1.0.2.0
 rm -rf bin obj
 ls -l dist
 [ -z "$FAILED" ] || { echo "Failed:$FAILED"; exit 1; }

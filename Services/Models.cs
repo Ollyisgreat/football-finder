@@ -148,4 +148,22 @@ namespace XtreamFootball.Services
         [JsonPropertyName("liveChannels")]
         public int LiveChannels { get; set; }
     }
+
+    public sealed class SetupResult
+    {
+        [JsonPropertyName("ok")]
+        public bool Ok { get; set; }
+
+        [JsonPropertyName("error")]
+        public string? Error { get; set; }
+
+        [JsonPropertyName("channels")]
+        public int Channels { get; set; }
+
+        [JsonPropertyName("teams")]
+        public List<string> Teams { get; set; } = new List<string>();
+
+        [JsonPropertyName("guideRefreshStarted")]
+        public bool GuideRefreshStarted { get; set; }
+    }
 }

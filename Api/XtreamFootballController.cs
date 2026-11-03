@@ -2,6 +2,8 @@ using System;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using MediaBrowser.Common.Configuration;
+using MediaBrowser.Model.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -17,10 +19,18 @@ namespace XtreamFootball.Api
     {
         private readonly XtreamService _service;
         private readonly ILogger<XtreamFootballController> _logger;
+        private readonly IConfigurationManager _configManager;
+        private readonly ITaskManager _taskManager;
 
-        public XtreamFootballController(IHttpClientFactory httpClientFactory, ILogger<XtreamFootballController> logger)
+        public XtreamFootballController(
+            IHttpClientFactory httpClientFactory,
+            ILogger<XtreamFootballController> logger,
+            IConfigurationManager configManager,
+            ITaskManager taskManager)
         {
             _logger = logger;
+            _configManager = configManager;
+            _taskManager = taskManager;
             _service = new XtreamService(httpClientFactory, logger);
         }
 
@@ -62,6 +72,61 @@ namespace XtreamFootball.Api
             catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
                 return new SearchResponse { Error = Friendly(ex) };
+            }
+        }
+
+        /// <summary>
+        /// One-tap Live TV: optionally adds a team to the saved list, writes the football playlist/guide files,
+        /// registers them in Jellyfin Live TV and refreshes the guide. Admins only.
+        /// </summary>
+        [HttpPost("SetupLiveTv")]
+        [Authorize(Policy = "RequiresElevation")]
+        [Produces("application/json")]
+        public async Task<ActionResult<SetupResult>> SetupLiveTv([FromQuery] string? addTeam, CancellationToken cancellationToken)
+        {
+            var result = new SetupResult();
+            try
+            {
+                var plugin = Plugin.Instance;
+                if (plugin == null)
+                {
+                    result.Error = "Plugin not loaded - restart Jellyfin.";
+                    return result;
+                }
+
+                var c = plugin.Configuration;
+                XtreamService.EnsureConfigured(c);
+
+                if (!string.IsNullOrWhiteSpace(addTeam))
+                {
+                    var lines = TeamMatcher.SplitTeamLines(c.Teams);
+                    var norm = TeamMatcher.Normalize(addTeam);
+                    if (!lines.Exists(l => TeamMatcher.Normalize(l) == norm))
+                    {
+                        lines.Add(addTeam.Trim());
+                        c.Teams = string.Join("\n", lines);
+                        plugin.SaveConfiguration();
+                    }
+                }
+
+                result.Teams = TeamMatcher.SplitTeamLines(c.Teams);
+                if (result.Teams.Count == 0)
+                {
+                    result.Error = "Add at least one team first (search for it, then tap \"Add to Live TV\").";
+                    return result;
+                }
+
+                result.Channels = await LiveTvFeeds.WriteFilesAsync(_service, cancellationToken).ConfigureAwait(false);
+                LiveTvFeeds.EnsureRegistered(_configManager, c);
+                result.GuideRefreshStarted = LiveTvFeeds.RefreshGuide(_taskManager);
+                result.Ok = true;
+                return result;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogWarning("XtreamFootball Live TV setup failed: {Message}", ex.ToString());
+                result.Error = Friendly(ex);
+                return result;
             }
         }
 
