@@ -1,0 +1,16 @@
+{
+  "category": "Live TV",
+  "changelog": "First release.",
+  "description": "Connect an Xtream Codes IPTV account, search the channel list and TV guide for your football team, and optionally expose only those channels to Jellyfin Live TV.",
+  "guid": "5c1a2f0e-7b3d-4e8a-9f21-6d4b8c0e3a71",
+  "name": "Xtream Football Finder",
+  "overview": "Find which IPTV channel is showing your team's match.",
+  "owner": "you",
+  "targetAbi": "__ABI__",
+  "timestamp": "2026-11-03T00:00:00.0000000Z",
+  "version": "1.0.0.0",
+  "status": "Active",
+  "autoUpdate": false,
+  "imagePath": "",
+  "assemblies": []
+}

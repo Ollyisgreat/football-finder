@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Xtream Football Finder</title>
+</head>
+<body>
+<div id="XtreamFootballConfigPage" data-role="page" class="page type-interior pluginConfigurationPage"
+     data-require="emby-input,emby-button,emby-select,emby-checkbox,emby-textarea">
+    <div data-role="content">
+        <div class="content-primary">
+            <style>
+                #XtreamFootballConfigPage .xf-card { background: rgba(255,255,255,.04); border-radius: .5em; padding: 1em; margin: 0 0 1em 0; }
+                #XtreamFootballConfigPage .xf-row { display: flex; gap: .6em; flex-wrap: wrap; align-items: flex-end; }
+                #XtreamFootballConfigPage .xf-row > .xf-grow { flex: 1 1 14em; }
+                #XtreamFootballConfigPage .xf-match { border-left: 4px solid #00a4dc; padding: .6em .9em; margin: .8em 0; background: rgba(255,255,255,.03); border-radius: .3em; }
+                #XtreamFootballConfigPage .xf-match.live { border-left-color: #e53935; }
+                #XtreamFootballConfigPage .xf-when { opacity: .8; font-size: .9em; }
+                #XtreamFootballConfigPage .xf-live { background: #e53935; color: #fff; border-radius: .3em; padding: 0 .4em; font-size: .75em; font-weight: bold; margin-right: .4em; }
+                #XtreamFootballConfigPage .xf-title { font-weight: bold; font-size: 1.05em; margin: .15em 0; }
+                #XtreamFootballConfigPage .xf-desc { opacity: .7; font-size: .85em; margin: .2em 0 .4em 0; }
+                #XtreamFootballConfigPage .xf-ch { display: flex; align-items: center; gap: .5em; padding: .25em 0; flex-wrap: wrap; border-top: 1px solid rgba(255,255,255,.06); }
+                #XtreamFootballConfigPage .xf-ch-name { flex: 1 1 12em; }
+                #XtreamFootballConfigPage .xf-cat { opacity: .6; font-size: .8em; }
+                #XtreamFootballConfigPage .xf-small { font-size: .8em; padding: .3em .8em; margin: 0; }
+                #XtreamFootballConfigPage .xf-msg { margin: .6em 0; }
+                #XtreamFootballConfigPage .xf-err { color: #ff6b6b; }
+                #XtreamFootballConfigPage .xf-url { width: 100%; font-family: monospace; font-size: .8em; padding: .4em; box-sizing: border-box; background: rgba(0,0,0,.3); color: inherit; border: 1px solid rgba(255,255,255,.15); border-radius: .3em; }
+            </style>
+
+            <h2 class="sectionTitle">⚽ Xtream Football Finder</h2>
+
+            <!-- ================= SEARCH ================= -->
+            <div class="xf-card">
+                <h3 style="margin-top:0">Find a match</h3>
+                <div class="xf-row">
+                    <div class="inputContainer xf-grow" style="margin-bottom:0">
+                        <input is="emby-input" type="text" id="xfQuery" label="Team" placeholder="e.g. Arsenal, Man Utd, Galatasaray" />
+                    </div>
+                    <div class="selectContainer" style="margin-bottom:0;min-width:8em">
+                        <select is="emby-select" id="xfDays" label="Look ahead">
+                            <option value="1">Today/24h</option>
+                            <option value="2">2 days</option>
+                            <option value="3" selected>3 days</option>
+                            <option value="7">7 days</option>
+                        </select>
+                    </div>
+                    <button is="emby-button" type="button" id="xfSearchBtn" class="raised button-submit" style="margin:0">
+                        <span>Search</span>
+                    </button>
+                </div>
+                <div class="xf-row" style="margin-top:.6em">
+                    <label class="emby-checkbox-label">
+                        <input is="emby-checkbox" type="checkbox" id="xfRefresh" />
+                        <span>Re-download channels &amp; TV guide (slower)</span>
+                    </label>
+                </div>
+                <div id="xfSavedTeams" class="xf-row" style="margin-top:.4em"></div>
+                <div id="xfStatus" class="xf-msg"></div>
+                <div id="xfResults"></div>
+            </div>
+
+            <!-- ================= SETTINGS ================= -->
+            <form id="XtreamFootballConfigForm">
+                <div class="xf-card">
+                    <h3 style="margin-top:0">IPTV account (Xtream Codes)</h3>
+                    <div class="inputContainer">
+                        <input is="emby-input" type="text" id="xfServerUrl" label="Server URL" placeholder="http://line.example.com:8080" />
+                        <div class="fieldDescription">Just the address and port your provider gave you. A full get.php link also works.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <input is="emby-input" type="text" id="xfUsername" label="Username" autocomplete="off" />
+                    </div>
+                    <div class="inputContainer">
+                        <input is="emby-input" type="password" id="xfPassword" label="Password" autocomplete="new-password" />
+                    </div>
+                    <div class="xf-row">
+                        <button is="emby-button" type="button" id="xfTestBtn" class="raised" style="margin:0"><span>Save &amp; test login</span></button>
+                    </div>
+                    <div id="xfTestResult" class="xf-msg"></div>
+                </div>
+
+                <div class="xf-card">
+                    <h3 style="margin-top:0">My teams</h3>
+                    <div class="inputContainer">
+                        <textarea is="emby-textarea" id="xfTeams" label="Teams (one per line)" rows="4" placeholder="Arsenal&#10;Man Utd|Manchester United&#10;Galatasaray"></textarea>
+                        <div class="fieldDescription">One team per line. Use <b>|</b> between alternative spellings. Common nicknames (Man Utd, Spurs, PSG, Bayern…) are already understood. These become quick-search buttons and feed the Live TV channel list below.</div>
+                    </div>
+                </div>
+
+                <div class="xf-card">
+                    <h3 style="margin-top:0">Search options</h3>
+                    <div class="inputContainer">
+                        <input is="emby-input" type="text" id="xfCategoryFilter" label="Only search channel groups containing" placeholder="e.g. sport, football, epl, ppv" />
+                        <div class="fieldDescription">Comma separated, matched against your provider's category names. Leave empty to search every channel (slower, more false hits).</div>
+                    </div>
+                    <div class="inputContainer">
+                        <input is="emby-input" type="text" id="xfExcludeWords" label="Ignore programmes whose title contains" />
+                        <div class="fieldDescription">Comma separated, e.g. highlights, review, replay.</div>
+                    </div>
+                    <label class="emby-checkbox-label">
+                        <input is="emby-checkbox" type="checkbox" id="xfSearchDescriptions" />
+                        <span>Also search programme descriptions (finds "Premier League: Arsenal v Chelsea" style listings)</span>
+                    </label>
+                    <div class="selectContainer" style="margin-top:1em">
+                        <select is="emby-select" id="xfLookaheadDays" label="Live TV: include matches in the next">
+                            <option value="1">1 day</option>
+                            <option value="2">2 days</option>
+                            <option value="3">3 days</option>
+                            <option value="5">5 days</option>
+                            <option value="7">7 days</option>
+                        </select>
+                    </div>
+                    <div class="selectContainer">
+                        <select is="emby-select" id="xfStreamFormat" label="Stream format">
+                            <option value="ts">MPEG-TS (.ts) – most compatible</option>
+                            <option value="m3u8">HLS (.m3u8)</option>
+                        </select>
+                    </div>
+                    <div class="inputContainer">
+                        <input is="emby-input" type="number" id="xfCacheHours" label="Keep channel list / TV guide for (hours)" min="1" max="48" />
+                    </div>
+                    <div class="inputContainer">
+                        <input is="emby-input" type="text" id="xfUserAgent" label="User agent sent to the IPTV server" />
+                        <div class="fieldDescription">Some providers only answer media players. Default pretends to be VLC.</div>
+                    </div>
+                </div>
+
+                <div class="xf-card">
+                    <h3 style="margin-top:0">Watch inside Jellyfin (optional)</h3>
+                    <div class="fieldDescription" style="margin-bottom:.8em">
+                        Jellyfin can show just the channels carrying your teams' matches as a "Football" Live TV list.
+                        Go to <b>Dashboard → Live TV</b>:<br>
+                        1. <b>Tuner Devices → +</b> → type <b>M3U Tuner</b> → paste the playlist link.<br>
+                        2. <b>TV Guide Data Providers → +</b> → <b>XMLTV</b> → paste the guide link.<br>
+                        3. Run <b>Scheduled Tasks → Refresh Guide</b>. Channels update as matches come and go.
+                    </div>
+                    <div class="inputContainer"><b>Playlist (M3U) link</b><input id="xfM3uUrl" class="xf-url" readonly /></div>
+                    <div class="inputContainer"><b>Guide (XMLTV) link</b><input id="xfXmlUrl" class="xf-url" readonly /></div>
+                    <div class="fieldDescription">If Jellyfin can't load these, replace the start of the link with <code>http://localhost:8096</code> (your server talking to itself). Keep these links private – they contain a secret key.</div>
+                </div>
+
+                <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+                    <span>Save</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        (function () {
+            var pluginId = '5c1a2f0e-7b3d-4e8a-9f21-6d4b8c0e3a71';
+            var page = document.querySelector('#XtreamFootballConfigPage');
+            var $ = function (sel) { return page.querySelector(sel); };
+            var currentConfig = null;
+
+            function esc(s) {
+                return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+                    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+                });
+            }
+
+            function fmtTime(iso) {
+                if (!iso) { return ''; }
+                if (!/[zZ]|[+-]\d\d:?\d\d$/.test(iso)) { iso += 'Z'; }
+                var d = new Date(iso);
+                return d.toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            }
+
+            function fmtClock(iso) {
+                if (!iso) { return ''; }
+                if (!/[zZ]|[+-]\d\d:?\d\d$/.test(iso)) { iso += 'Z'; }
+                return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+
+            function readForm(config) {
+                config.ServerUrl = $('#xfServerUrl').value.trim();
+                config.Username = $('#xfUsername').value.trim();
+                config.Password = $('#xfPassword').value;
+                config.Teams = $('#xfTeams').value;
+                config.CategoryFilter = $('#xfCategoryFilter').value;
+                config.ExcludeWords = $('#xfExcludeWords').value;
+                config.SearchDescriptions = $('#xfSearchDescriptions').checked;
+                config.LookaheadDays = parseInt($('#xfLookaheadDays').value, 10) || 3;
+                config.StreamFormat = $('#xfStreamFormat').value;
+                config.CacheHours = parseInt($('#xfCacheHours').value, 10) || 6;
+                config.UserAgent = $('#xfUserAgent').value;
+                return config;
+            }
+
+            function fillForm(config) {
+                currentConfig = config;
+                $('#xfServerUrl').value = config.ServerUrl || '';
+                $('#xfUsername').value = config.Username || '';
+                $('#xfPassword').value = config.Password || '';
+                $('#xfTeams').value = config.Teams || '';
+                $('#xfCategoryFilter').value = config.CategoryFilter || '';
+                $('#xfExcludeWords').value = config.ExcludeWords || '';
+                $('#xfSearchDescriptions').checked = !!config.SearchDescriptions;
+                $('#xfLookaheadDays').value = String(config.LookaheadDays || 3);
+                $('#xfStreamFormat').value = config.StreamFormat || 'ts';
+                $('#xfCacheHours').value = config.CacheHours || 6;
+                $('#xfUserAgent').value = config.UserAgent || '';
+
+                var base = ApiClient.serverAddress().replace(/\/$/, '');
+                var key = encodeURIComponent(config.AccessKey || '');
+                $('#xfM3uUrl').value = base + '/XtreamFootball/playlist.m3u?key=' + key;
+                $('#xfXmlUrl').value = base + '/XtreamFootball/guide.xml?key=' + key;
+
+                renderTeamButtons(config.Teams || '');
+            }
+
+            function renderTeamButtons(teams) {
+                var box = $('#xfSavedTeams');
+                var lines = teams.split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
+                box.innerHTML = lines.map(function (l) {
+                    return '<button is="emby-button" type="button" class="raised xf-small xf-team" data-q="' + esc(l) + '"><span>' + esc(l.split('|')[0]) + '</span></button>';
+                }).join('');
+            }
+
+            function save() {
+                Dashboard.showLoadingMsg();
+                return ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                    readForm(config);
+                    return ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
+                        fillForm(config);
+                        Dashboard.processPluginConfigurationUpdateResult(result);
+                        return config;
+                    });
+                }).catch(function (e) {
+                    Dashboard.hideLoadingMsg();
+                    throw e;
+                });
+            }
+
+            function load() {
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                    fillForm(config);
+                    Dashboard.hideLoadingMsg();
+                });
+            }
+
+            function copy(text) {
+                function fallback() {
+                    var ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.style.position = 'fixed';
+                    ta.style.opacity = '0';
+                    document.body.appendChild(ta);
+                    ta.focus();
+                    ta.select();
+                    try { document.execCommand('copy'); } catch (e) { }
+                    document.body.removeChild(ta);
+                }
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(text).catch(fallback);
+                } else {
+                    fallback();
+                }
+                if (window.Dashboard && Dashboard.alert) {
+                    Dashboard.alert({ message: 'Stream link copied – paste it into VLC or any IPTV player.' });
+                }
+            }
+
+            function channelRows(channels) {
+                return channels.map(function (ch) {
+                    return '<div class="xf-ch">' +
+                        '<div class="xf-ch-name">' + esc(ch.name) + (ch.category ? ' <span class="xf-cat">· ' + esc(ch.category) + '</span>' : '') + '</div>' +
+                        '<button is="emby-button" type="button" class="raised xf-small xf-copy" data-url="' + esc(ch.url) + '"><span>Copy link</span></button>' +
+                        '<a is="emby-linkbutton" class="raised emby-button xf-small" href="' + esc(ch.url) + '" target="_blank" rel="noopener">Open</a>' +
+                        '</div>';
+                }).join('');
+            }
+
+            function render(r) {
+                var status = $('#xfStatus');
+                var out = $('#xfResults');
+                if (r.error) {
+                    status.innerHTML = '<span class="xf-err">' + esc(r.error) + '</span>';
+                    out.innerHTML = '';
+                    return;
+                }
+
+                var info = 'Searched ' + r.channelsSearched + ' channels and ' + r.programmesSearched + ' guide listings for: <i>' + esc((r.terms || []).join(', ')) + '</i>.';
+                if (r.epgError) { info += '<br><span class="xf-err">' + esc(r.epgError) + '</span>'; }
+                status.innerHTML = info;
+
+                var html = '';
+                if (r.matches.length) {
+                    html += '<h3>📺 In the TV guide</h3>';
+                    r.matches.forEach(function (m) {
+                        html += '<div class="xf-match' + (m.isLive ? ' live' : '') + '">' +
+                            '<div class="xf-when">' + (m.isLive ? '<span class="xf-live">LIVE</span>' : '') +
+                            esc(fmtTime(m.startUtc)) + ' – ' + esc(fmtClock(m.endUtc)) + '</div>' +
+                            '<div class="xf-title">' + esc(m.title) + '</div>' +
+                            (m.description ? '<div class="xf-desc">' + esc(m.description) + '</div>' : '') +
+                            channelRows(m.channels) + '</div>';
+                    });
+                }
+
+                if (r.namedChannels.length) {
+                    html += '<h3>🎟️ Event channels with the team in their name</h3>' +
+                        '<div class="xf-match">' + channelRows(r.namedChannels) + '</div>';
+                }
+
+                if (!html) {
+                    html = '<p>No matches found. Tips: try another spelling (e.g. "Man Utd" vs "Manchester United"), look further ahead, ' +
+                        'tick "Re-download" to get a fresh guide, or clear the channel-group filter.</p>';
+                }
+
+                out.innerHTML = html;
+            }
+
+            function search(q) {
+                q = (q || $('#xfQuery').value || '').trim();
+                if (!q) { $('#xfStatus').innerHTML = '<span class="xf-err">Type a team name.</span>'; return; }
+                $('#xfQuery').value = q;
+                var refresh = $('#xfRefresh').checked;
+                $('#xfStatus').innerHTML = refresh || !page.dataset.xfLoaded
+                    ? 'Searching… the first search downloads your whole TV guide and can take a minute or two.'
+                    : 'Searching…';
+                $('#xfResults').innerHTML = '';
+                Dashboard.showLoadingMsg();
+                var url = ApiClient.getUrl('XtreamFootball/Search', {
+                    q: q,
+                    days: $('#xfDays').value,
+                    refresh: refresh
+                });
+                ApiClient.getJSON(url).then(function (r) {
+                    Dashboard.hideLoadingMsg();
+                    page.dataset.xfLoaded = '1';
+                    $('#xfRefresh').checked = false;
+                    render(r);
+                }).catch(function () {
+                    Dashboard.hideLoadingMsg();
+                    $('#xfStatus').innerHTML = '<span class="xf-err">Search failed. Is the plugin set up and Jellyfin restarted? Check Dashboard → Logs for "XtreamFootball".</span>';
+                });
+            }
+
+            function test() {
+                $('#xfTestResult').innerHTML = 'Checking…';
+                save().then(function () {
+                    Dashboard.showLoadingMsg();
+                    return ApiClient.getJSON(ApiClient.getUrl('XtreamFootball/Test'));
+                }).then(function (r) {
+                    Dashboard.hideLoadingMsg();
+                    if (r.error) {
+                        $('#xfTestResult').innerHTML = '<span class="xf-err">' + esc(r.error) + '</span>';
+                    } else {
+                        $('#xfTestResult').innerHTML = '✅ Logged in. Status: ' + esc(r.status) +
+                            ' · Expires: ' + esc(r.expires) +
+                            ' · Connections: ' + esc(r.activeConnections) + '/' + esc(r.maxConnections) +
+                            ' · ' + r.liveChannels + ' live channels';
+                    }
+                }).catch(function () {
+                    Dashboard.hideLoadingMsg();
+                    $('#xfTestResult').innerHTML = '<span class="xf-err">Test failed – has Jellyfin been restarted since installing the plugin?</span>';
+                });
+            }
+
+            page.addEventListener('pageshow', load);
+
+            $('#XtreamFootballConfigForm').addEventListener('submit', function (e) {
+                e.preventDefault();
+                save();
+                return false;
+            });
+
+            $('#xfSearchBtn').addEventListener('click', function () { search(); });
+            $('#xfQuery').addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); search(); }
+            });
+            $('#xfTestBtn').addEventListener('click', test);
+
+            page.addEventListener('click', function (e) {
+                var t = e.target.closest ? e.target.closest('.xf-copy, .xf-team') : null;
+                if (!t) { return; }
+                if (t.classList.contains('xf-copy')) { copy(t.getAttribute('data-url')); }
+                if (t.classList.contains('xf-team')) { search(t.getAttribute('data-q')); }
+            });
+        })();
+    </script>
+</div>
+</body>
+</html>

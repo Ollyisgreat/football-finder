@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Build for Jellyfin 10.11 (default):  dotnet publish -c Release
+    Build for Jellyfin 10.10:            dotnet publish -c Release -p:PluginTfm=net8.0 -p:JellyfinVersion=10.10.*
+  -->
+  <PropertyGroup>
+    <PluginTfm Condition="'$(PluginTfm)' == ''">net9.0</PluginTfm>
+    <TargetFramework>$(PluginTfm)</TargetFramework>
+    <JellyfinVersion Condition="'$(JellyfinVersion)' == ''">10.11.*</JellyfinVersion>
+    <RootNamespace>XtreamFootball</RootNamespace>
+    <AssemblyName>XtreamFootball</AssemblyName>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Jellyfin.Controller" Version="$(JellyfinVersion)">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="Jellyfin.Model" Version="$(JellyfinVersion)">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Configuration\configPage.html" />
+    <EmbeddedResource Include="Configuration\configPage.html">
+      <LogicalName>XtreamFootball.Configuration.configPage.html</LogicalName>
+    </EmbeddedResource>
+    <None Include="meta.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
+</Project>
